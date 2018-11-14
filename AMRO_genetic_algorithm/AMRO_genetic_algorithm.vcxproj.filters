@@ -27,12 +27,6 @@
     <ClCompile Include="InitializeGeneticAlgorithm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="LoadData.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MatrixCalculations.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -40,12 +34,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="calculateAMRO.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="CreateArray.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="CrystalSymmetrySpecific.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="DataExtractor.cpp">
@@ -59,9 +47,6 @@
     <ClInclude Include="calculateAMRO.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CreateArray.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="DataExtractor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -72,9 +57,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Header.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="LoadData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Parameters.h">

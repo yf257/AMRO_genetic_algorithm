@@ -83,6 +83,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>C:\Program Files %28x86%29\Intel\Composer XE 2011 SP1\mkl\include;$(IncludePath)</IncludePath>
+    <SourcePath>C:\Program Files %28x86%29\Intel\Composer XE 2011 SP1\mkl\include;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -135,16 +137,23 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>Create</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>MaxSpeedHighLevel</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
+      <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <Parallelization>true</Parallelization>
+      <UseIntelOptimizedHeaders>true</UseIntelOptimizedHeaders>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <FloatingPointModel>Fast2</FloatingPointModel>
+      <UseProcessorExtensions>HOST</UseProcessorExtensions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -157,25 +166,19 @@
     <ClCompile Include="AMRO_genetic_algorithm.cpp" />
     <ClCompile Include="ArrayAllocator.cpp" />
     <ClCompile Include="calculateAMRO.cpp" />
-    <ClCompile Include="CreateArray.cpp" />
-    <ClCompile Include="CrystalSymmetrySpecific.cpp" />
     <ClCompile Include="DataExtractor.cpp" />
     <ClCompile Include="FindFermi.cpp" />
     <ClCompile Include="GeneticAlgorithm.cpp" />
     <ClCompile Include="InitializeGeneticAlgorithm.cpp" />
-    <ClCompile Include="LoadData.cpp" />
-    <ClCompile Include="MatrixCalculations.cpp" />
     <ClCompile Include="stdafx.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ArrayAllocator.h" />
     <ClInclude Include="calculateAMRO.h" />
-    <ClInclude Include="CreateArray.h" />
     <ClInclude Include="DataExtractor.h" />
     <ClInclude Include="FindFermi.h" />
     <ClInclude Include="GeneticAlgorithm.h" />
     <ClInclude Include="Header.h" />
-    <ClInclude Include="LoadData.h" />
     <ClInclude Include="Parameters.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
