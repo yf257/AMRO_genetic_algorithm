@@ -166,6 +166,7 @@
     <ClCompile Include="AMRO_genetic_algorithm.cpp" />
     <ClCompile Include="ArrayAllocator.cpp" />
     <ClCompile Include="calculateAMRO.cpp" />
+    <ClCompile Include="CreateArray.cpp" />
     <ClCompile Include="DataExtractor.cpp" />
     <ClCompile Include="FindFermi.cpp" />
     <ClCompile Include="GeneticAlgorithm.cpp" />

@@ -26,18 +26,18 @@ calculateAMRO::calculateAMRO(double *data, double * param, Ipp64f * theta, int c
 	//cout << dataLeng << endl;
 	condout = new Ipp64f[_dataLeng];
 	//tau = .5;
-	final = 8*param[0];//time final?
-	steps = 500;//number of time steps?
+	final = 20*param[0] ;//time final?
+	steps = 2000;//number of time steps?
 	h = final / steps;
 	field45 = 7.91209; // 45 tesla in appropriate units
-	Fermi =new FindFermi( param,cdev,gridN);
+	Fermi =new FindFermi( param,cdev);
 
 	//DataExtractor extractor("starts.dat");
 	//Ipp64f * starts = extractor.getDataArray();
 	//int nPoints = floor((extractor.getNumberOfLines()) / 3);//x,y,z coordinates?
 
 	nPoints = Fermi->nPoints;
-	
+	//cout << nPoints << endl;
 	starts = new Ipp64f[nPoints * 3];
 	//Fermi->ReturnStart(starts);
 	output = new Ipp64f[nPoints*steps * 3]; //stores evolution of orbit around Fermi surface
@@ -62,9 +62,9 @@ calculateAMRO::calculateAMRO(double *data, double * param, Ipp64f * theta, int c
 	argy = new Ipp64f[nPoints];
 	argz = new Ipp64f[nPoints];
 
-	tempx = new Ipp64f[16 * nPoints];
-	tempy = new Ipp64f[16 * nPoints];
-	tempz = new Ipp64f[16 * nPoints];
+	tempx = new Ipp64f[20 * nPoints];
+	tempy = new Ipp64f[20 * nPoints];
+	tempz = new Ipp64f[20 * nPoints];
 
 	k1x = new Ipp64f[nPoints];
 	k1y = new Ipp64f[nPoints];
@@ -81,7 +81,20 @@ calculateAMRO::calculateAMRO(double *data, double * param, Ipp64f * theta, int c
 	tempdif = new Ipp64f[_dataLeng*3];
 	//Fermi->ReturnStart(starts);
 	exptau = new Ipp64f[steps*nPoints];
-
+	minDos = 0;
+    maxDos = 0;
+	temp = new Ipp64f[10 * nPoints];
+	upper_bound = new Ipp64f[nPoints];
+	ippsSet_64f(0.83828, upper_bound, nPoints);
+	lower_bound = new Ipp64f[nPoints];
+	ippsSet_64f(-0.83828, lower_bound, nPoints);
+	over_shift = new Ipp64f[nPoints];
+	ippsSet_64f(2 * 0.83828, upper_bound, nPoints);
+	less_shift = new Ipp64f[nPoints];
+	ippsSet_64f(-2 * 0.83828, lower_bound, nPoints);
+	zeros = new Ipp64f[nPoints];//for inverting
+	ippsSet_64f(0, zeros, nPoints);
+	//startT = std::clock();
 }
 calculateAMRO::~calculateAMRO()
 {
@@ -129,6 +142,18 @@ calculateAMRO::~calculateAMRO()
 	delete _data;
 	delete phis;
 	delete exptau;
+	delete temp;
+	delete upper_bound;
+
+	delete lower_bound;
+
+	delete over_shift;
+
+	delete less_shift;
+
+	delete zeros;//for inverting
+
+
 }
 int calculateAMRO::updatedata(Ipp64f *data, int Length) {
 	for (int i = 0; i < Length; ++i) {
@@ -186,7 +211,23 @@ Ipp64f calculateAMRO::returnvalue(double * param)
 			output[2 * nPoints + j] = starts[j * 3 + 2];
 		}
 
+		ippsCopy_64f(&output[nPoints * (0)], argx, nPoints);//initial velocities for DOS calc;
+		ippsCopy_64f(&output[nPoints * (1)], argy, nPoints);
+		ippsCopy_64f(&output[nPoints * (2)], argz, nPoints);
+		veloX(params, argx, argy, argz, nPoints, tempx, vx); //velocities for DOS are stored in vx, vy, and vz buffers.
+		veloY(params, argx, argy, argz, nPoints, tempy, vy);
+		veloZ(params, argx, argy, argz, nPoints, tempz, vz);
 
+		ippsSqr_64f_I(vx, nPoints);//in-place square of velocities
+		ippsSqr_64f_I(vy, nPoints);
+		ippsSqr_64f_I(vz, nPoints);
+
+		ippsAdd_64f(vx, vy, tempx, nPoints);//add all square velocities
+		ippsAdd_64f_I(vz, tempx, nPoints);
+		ippsSqrt_64f_I(tempx, nPoints);//square root
+		ippsDiv_64f(tempx, ones, DOS, nPoints);
+		ippsMax_64f(DOS, nPoints, &maxDos);
+		ippsMin_64f(DOS, nPoints, &minDos);
 
 		/*argx[0] = 1;
 		argy[0] = 2;
@@ -223,7 +264,8 @@ Ipp64f calculateAMRO::returnvalue(double * param)
 				veloZ(params, argx, argy, argz, nPoints, tempz, vz);
 				ippsCopy_64f(vz, &vzStorage[nPoints * (i - 1)], nPoints);//store vz for conductivity later
 
-				taufun(params, argx, argy, nPoints, tempx, taus, ones);// calculate k dependent tau
+				//taufun(params, argx, argy, nPoints, tempx, taus, ones);// calculate k dependent tau
+				taufundos(params, minDos, maxDos, argx, argy, argz, nPoints, tempx, taus, ones);
 				ippsDiv_64f_I(taus, &times[nPoints * (i - 1)], nPoints);
 				//ippsDivC_64f_I(tau, &times[nPoints * (i - 1)], nPoints);
 				//ippsExp_64f_I(&times[nPoints * (i - 1)], nPoints);
@@ -307,9 +349,61 @@ Ipp64f calculateAMRO::returnvalue(double * param)
 				ippsMulC_64f_I(h / 6, tempx, nPoints); //scale the entire sum
 				ippsMulC_64f_I(h / 6, tempy, nPoints); //scale the entire sum
 				ippsMulC_64f_I(h / 6, tempz, nPoints); //scale the entire sum
-
+				/*
 				ippsAdd_64f(&output[nPoints * (3 * (i - 1) + 0)], tempx, &output[nPoints * (3 * i + 0)], nPoints); //add sum to previous output and store
 				ippsAdd_64f(&output[nPoints * (3 * (i - 1) + 1)], tempy, &output[nPoints * (3 * i + 1)], nPoints);
+				ippsAdd_64f(&output[nPoints * (3 * (i - 1) + 2)], tempz, &output[nPoints * (3 * i + 2)], nPoints);
+				*/
+				ippsSubC_64f(temp, 0.83828, &temp[nPoints], nPoints);//find those larger than Pi/a
+				ippsMaxEvery_64f(zeros, &temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsDiv_64f_I(&temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsMul_64f_I(less_shift, &temp[2 * nPoints], nPoints);
+				ippsAdd_64f(temp, &temp[2 * nPoints], &temp[3 * nPoints], nPoints);
+				//ippsAdd_64f(temp, &temp[2 * nPoints], &output[nPoints * (3 * i)], nPoints);
+
+				ippsSubC_64f(&temp[3 * nPoints], -0.83828, &temp[nPoints], nPoints);//find those smaller than Pi/a
+				ippsMinEvery_64f(zeros, &temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsDiv_64f_I(&temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsMul_64f_I(over_shift, &temp[2 * nPoints], nPoints);
+				ippsAdd_64f(&temp[3 * nPoints], &temp[2 * nPoints], &output[nPoints * (3 * i)], nPoints);
+
+				ippsAdd_64f(&output[nPoints * (3 * (i - 1) + 0)], tempx, temp, nPoints); //add sum to previous output and store
+
+				//ippsSub_64f(upper_bound,temp,&temp[nPoints], nPoints);//find those larger than Pi/a
+				ippsSubC_64f(temp, 0.83828, &temp[nPoints], nPoints);//find those larger than Pi/a
+				ippsMaxEvery_64f(zeros, &temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsDiv_64f_I(&temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsMul_64f_I(less_shift, &temp[2 * nPoints], nPoints);
+				ippsAdd_64f(temp, &temp[2 * nPoints], &temp[3 * nPoints], nPoints);
+				//ippsAdd_64f(temp, &temp[2 * nPoints], &output[nPoints * (3 * i)], nPoints);
+
+				ippsSubC_64f(&temp[3 * nPoints], -0.83828, &temp[nPoints], nPoints);//find those smaller than Pi/a
+				ippsMinEvery_64f(zeros, &temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsDiv_64f_I(&temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsMul_64f_I(over_shift, &temp[2 * nPoints], nPoints);
+				ippsAdd_64f(&temp[3 * nPoints], &temp[2 * nPoints], &output[nPoints * (3 * i)], nPoints);
+
+				ippsAdd_64f(&output[nPoints * (3 * (i - 1) + 1)], tempy, temp, nPoints); //add sum to previous output and store
+
+	//ippsSub_64f(upper_bound,temp,&temp[nPoints], nPoints);//find those larger than Pi/a
+				ippsSubC_64f(temp, 0.83828, &temp[nPoints], nPoints);//find those larger than Pi/a
+				ippsMaxEvery_64f(zeros, &temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsDiv_64f_I(&temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsMul_64f_I(less_shift, &temp[2 * nPoints], nPoints);
+				ippsAdd_64f(temp, &temp[2 * nPoints], &temp[3 * nPoints], nPoints);
+				//ippsAdd_64f(temp, &temp[2 * nPoints], &output[nPoints * (3 * i)], nPoints);
+
+				ippsSubC_64f(&temp[3 * nPoints], -0.83828, &temp[nPoints], nPoints);//find those smaller than Pi/a
+				ippsMinEvery_64f(zeros, &temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsDiv_64f_I(&temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsMul_64f_I(over_shift, &temp[2 * nPoints], nPoints);
+				ippsAdd_64f(&temp[3 * nPoints], &temp[2 * nPoints], &output[nPoints * (3 * i + 1)], nPoints);
+
+
+
+				//ippsAdd_64f(&output[nPoints * (3 * (i - 1) + 1)], tempy, &output[nPoints * (3 * i + 1)], nPoints);
+
+
 				ippsAdd_64f(&output[nPoints * (3 * (i - 1) + 2)], tempz, &output[nPoints * (3 * i + 2)], nPoints);
 			}
 
@@ -320,12 +414,13 @@ Ipp64f calculateAMRO::returnvalue(double * param)
 			veloZ(params, argx, argy, argz, nPoints, tempz, vz);
 			ippsCopy_64f(vz, &vzStorage[nPoints * (steps - 1)], nPoints);
 
-			taufun(params, argx, argy, nPoints, tempx, taus, ones);// calculate k dependent tau for last point
+			//taufun(params, argx, argy, nPoints, tempx, taus, ones);// calculate k dependent tau for last point
+			taufundos(params, minDos, maxDos, argx, argy, argz, nPoints, tempx, taus, ones);
 			ippsDiv_64f_I(taus, &times[nPoints * (steps - 1)], nPoints);
 			//ippsDivC_64f_I(tau, &times[nPoints * (steps - 1)], nPoints);
 			//ippsExp_64f_I(&times[nPoints * (steps - 1)], nPoints);
 			//ippsMulC_64f_I((1E-12)*h, &times[nPoints * (steps - 1)], nPoints);
-
+/*
 			ippsCopy_64f(&output[nPoints * (0)], argx, nPoints);//initial velocities for DOS calc;
 			ippsCopy_64f(&output[nPoints * (1)], argy, nPoints);
 			ippsCopy_64f(&output[nPoints * (2)], argz, nPoints);
@@ -341,7 +436,7 @@ Ipp64f calculateAMRO::returnvalue(double * param)
 			ippsAdd_64f_I(vz, tempx, nPoints);
 			ippsSqrt_64f_I(tempx, nPoints);//square root
 			ippsDiv_64f(tempx, ones, DOS, nPoints);
-
+*/
 			//need to change!!
 			  //ippsDiv_64f_I(taus, times, steps);//exponential stuff, negative tau is taken care of in time
 			  //ippsExp_64f_I(times, steps);
@@ -402,8 +497,23 @@ int calculateAMRO::writefile( double * param)
 			output[1 * nPoints + j] = starts[j * 3 + 1];
 			output[2 * nPoints + j] = starts[j * 3 + 2];
 		}
+		ippsCopy_64f(&output[nPoints * (0)], argx, nPoints);//initial velocities for DOS calc;
+		ippsCopy_64f(&output[nPoints * (1)], argy, nPoints);
+		ippsCopy_64f(&output[nPoints * (2)], argz, nPoints);
+		veloX(params, argx, argy, argz, nPoints, tempx, vx); //velocities for DOS are stored in vx, vy, and vz buffers.
+		veloY(params, argx, argy, argz, nPoints, tempy, vy);
+		veloZ(params, argx, argy, argz, nPoints, tempz, vz);
 
+		ippsSqr_64f_I(vx, nPoints);//in-place square of velocities
+		ippsSqr_64f_I(vy, nPoints);
+		ippsSqr_64f_I(vz, nPoints);
 
+		ippsAdd_64f(vx, vy, tempx, nPoints);//add all square velocities
+		ippsAdd_64f_I(vz, tempx, nPoints);
+		ippsSqrt_64f_I(tempx, nPoints);//square root
+		ippsDiv_64f(tempx, ones, DOS, nPoints);
+		ippsMax_64f(DOS, nPoints, &maxDos);
+		ippsMin_64f(DOS, nPoints, &minDos);
 
 		/*argx[0] = 1;
 		argy[0] = 2;
@@ -440,7 +550,8 @@ int calculateAMRO::writefile( double * param)
 				veloZ(params, argx, argy, argz, nPoints, tempz, vz);
 				ippsCopy_64f(vz, &vzStorage[nPoints * (i - 1)], nPoints);//store vz for conductivity later
 
-				taufun(params, argx, argy, nPoints, tempx, taus, ones);// calculate k dependent tau
+				//taufun(params, argx, argy, nPoints, tempx, taus, ones);// calculate k dependent tau
+				taufundos(params, minDos, maxDos, argx, argy, argz, nPoints, tempx, taus, ones);
 				ippsDiv_64f_I(taus, &times[nPoints * (i - 1)], nPoints);
 				//ippsDivC_64f_I(tau, &times[nPoints * (i - 1)], nPoints);
 				//ippsExp_64f_I(&times[nPoints * (i - 1)], nPoints);
@@ -524,9 +635,61 @@ int calculateAMRO::writefile( double * param)
 				ippsMulC_64f_I(h / 6, tempx, nPoints); //scale the entire sum
 				ippsMulC_64f_I(h / 6, tempy, nPoints); //scale the entire sum
 				ippsMulC_64f_I(h / 6, tempz, nPoints); //scale the entire sum
-
+				/*
 				ippsAdd_64f(&output[nPoints * (3 * (i - 1) + 0)], tempx, &output[nPoints * (3 * i + 0)], nPoints); //add sum to previous output and store
 				ippsAdd_64f(&output[nPoints * (3 * (i - 1) + 1)], tempy, &output[nPoints * (3 * i + 1)], nPoints);
+				ippsAdd_64f(&output[nPoints * (3 * (i - 1) + 2)], tempz, &output[nPoints * (3 * i + 2)], nPoints);
+				*/
+				ippsSubC_64f(temp, 0.83828, &temp[nPoints], nPoints);//find those larger than Pi/a
+				ippsMaxEvery_64f(zeros, &temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsDiv_64f_I(&temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsMul_64f_I(less_shift, &temp[2 * nPoints], nPoints);
+				ippsAdd_64f(temp, &temp[2 * nPoints], &temp[3 * nPoints], nPoints);
+				//ippsAdd_64f(temp, &temp[2 * nPoints], &output[nPoints * (3 * i)], nPoints);
+
+				ippsSubC_64f(&temp[3 * nPoints], -0.83828, &temp[nPoints], nPoints);//find those smaller than Pi/a
+				ippsMinEvery_64f(zeros, &temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsDiv_64f_I(&temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsMul_64f_I(over_shift, &temp[2 * nPoints], nPoints);
+				ippsAdd_64f(&temp[3 * nPoints], &temp[2 * nPoints], &output[nPoints * (3 * i)], nPoints);
+
+				ippsAdd_64f(&output[nPoints * (3 * (i - 1) + 0)], tempx, temp, nPoints); //add sum to previous output and store
+
+				//ippsSub_64f(upper_bound,temp,&temp[nPoints], nPoints);//find those larger than Pi/a
+				ippsSubC_64f(temp, 0.83828, &temp[nPoints], nPoints);//find those larger than Pi/a
+				ippsMaxEvery_64f(zeros, &temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsDiv_64f_I(&temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsMul_64f_I(less_shift, &temp[2 * nPoints], nPoints);
+				ippsAdd_64f(temp, &temp[2 * nPoints], &temp[3 * nPoints], nPoints);
+				//ippsAdd_64f(temp, &temp[2 * nPoints], &output[nPoints * (3 * i)], nPoints);
+
+				ippsSubC_64f(&temp[3 * nPoints], -0.83828, &temp[nPoints], nPoints);//find those smaller than Pi/a
+				ippsMinEvery_64f(zeros, &temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsDiv_64f_I(&temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsMul_64f_I(over_shift, &temp[2 * nPoints], nPoints);
+				ippsAdd_64f(&temp[3 * nPoints], &temp[2 * nPoints], &output[nPoints * (3 * i)], nPoints);
+
+				ippsAdd_64f(&output[nPoints * (3 * (i - 1) + 1)], tempy, temp, nPoints); //add sum to previous output and store
+
+	//ippsSub_64f(upper_bound,temp,&temp[nPoints], nPoints);//find those larger than Pi/a
+				ippsSubC_64f(temp, 0.83828, &temp[nPoints], nPoints);//find those larger than Pi/a
+				ippsMaxEvery_64f(zeros, &temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsDiv_64f_I(&temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsMul_64f_I(less_shift, &temp[2 * nPoints], nPoints);
+				ippsAdd_64f(temp, &temp[2 * nPoints], &temp[3 * nPoints], nPoints);
+				//ippsAdd_64f(temp, &temp[2 * nPoints], &output[nPoints * (3 * i)], nPoints);
+
+				ippsSubC_64f(&temp[3 * nPoints], -0.83828, &temp[nPoints], nPoints);//find those smaller than Pi/a
+				ippsMinEvery_64f(zeros, &temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsDiv_64f_I(&temp[nPoints], &temp[2 * nPoints], nPoints);
+				ippsMul_64f_I(over_shift, &temp[2 * nPoints], nPoints);
+				ippsAdd_64f(&temp[3 * nPoints], &temp[2 * nPoints], &output[nPoints * (3 * i + 1)], nPoints);
+
+
+
+				//ippsAdd_64f(&output[nPoints * (3 * (i - 1) + 1)], tempy, &output[nPoints * (3 * i + 1)], nPoints);
+
+
 				ippsAdd_64f(&output[nPoints * (3 * (i - 1) + 2)], tempz, &output[nPoints * (3 * i + 2)], nPoints);
 			}
 
@@ -537,12 +700,13 @@ int calculateAMRO::writefile( double * param)
 			veloZ(params, argx, argy, argz, nPoints, tempz, vz);
 			ippsCopy_64f(vz, &vzStorage[nPoints * (steps - 1)], nPoints);
 
-			taufun(params, argx, argy, nPoints, tempx, taus, ones);// calculate k dependent tau for last point
+			//taufun(params, argx, argy, nPoints, tempx, taus, ones);// calculate k dependent tau for last point
+			taufundos(params, minDos, maxDos, argx, argy, argz, nPoints, tempx, taus, ones);
 			ippsDiv_64f_I(taus, &times[nPoints * (steps - 1)], nPoints);
 			//ippsDivC_64f_I(tau, &times[nPoints * (steps - 1)], nPoints);
 			//ippsExp_64f_I(&times[nPoints * (steps - 1)], nPoints);
 			//ippsMulC_64f_I((1E-12)*h, &times[nPoints * (steps - 1)], nPoints);
-
+			/*
 			ippsCopy_64f(&output[nPoints * (0)], argx, nPoints);//initial velocities for DOS calc;
 			ippsCopy_64f(&output[nPoints * (1)], argy, nPoints);
 			ippsCopy_64f(&output[nPoints * (2)], argz, nPoints);
@@ -558,7 +722,7 @@ int calculateAMRO::writefile( double * param)
 			ippsAdd_64f_I(vz, tempx, nPoints);
 			ippsSqrt_64f_I(tempx, nPoints);//square root
 			ippsDiv_64f(tempx, ones, DOS, nPoints);
-
+			*/
 			//need to change!!
 			  //ippsDiv_64f_I(taus, times, steps);//exponential stuff, negative tau is taken care of in time
 			  //ippsExp_64f_I(times, steps);
@@ -618,33 +782,33 @@ int calculateAMRO::writefile( double * param)
 
 int calculateAMRO::veloX(double *params, Ipp64f *kx, Ipp64f *ky, Ipp64f *kz, int length, Ipp64f *temp, Ipp64f *out)
 {
-	ippsMulC_64f(kx, 3.74767, temp, length); //term for sin(kx), param3
+	ippsMulC_64f(kx, 3.747665940, temp, length); //term for sin(kx), param3
 	vdSin(length, temp, &temp[1 * length]);
 	ippsMulC_64f(&temp[1 * length], params[3 - 1] * 11.4215, out, length);
 
-	ippsMulC_64f(kx, 3.74767, temp, length); //term for sin(kx)cos(ky), param4
+	ippsMulC_64f(kx, 3.747665940, temp, length); //term for sin(kx)cos(ky), param4
 	vdSin(length, temp, &temp[1 * length]);
-	ippsMulC_64f(ky, 3.74767, temp, length);
+	ippsMulC_64f(ky, 3.747665940, temp, length);
 	vdCos(length, temp, &temp[2 * length]);
 	ippsMul_64f_I(&temp[1 * length], &temp[2 * length], length);
 	ippsMulC_64f(&temp[2 * length], 22.8429*params[4 - 1], temp, length);
 	ippsAdd_64f_I(temp, out, length);
 
-	ippsMulC_64f(kx, 2 * 3.74767, temp, length); //term for sin(2 kx), param5
+	ippsMulC_64f(kx, 2 * 3.747665940, temp, length); //term for sin(2 kx), param5
 	vdSin(length, temp, &temp[1 * length]);
 	ippsMulC_64f(&temp[1 * length], params[5 - 1] * 11.4215 * 2, temp, length);
 	ippsAdd_64f_I(temp, out, length);
 
-	ippsMulC_64f(kx, 3.74767, temp, length); //term for long complicated kz term, param6
+	ippsMulC_64f(kx, 3.747665940, temp, length); //term for long complicated kz term, param6
 	vdSin(length, temp, &temp[1 * length]); // sin kx
 	vdCos(length, temp, &temp[2 * length]); // cos kx
-	ippsMulC_64f(ky, 3.74767, temp, length);
+	ippsMulC_64f(ky, 3.747665940, temp, length);
 	vdSin(length, temp, &temp[3 * length]); // sin ky
 	vdCos(length, temp, &temp[4 * length]); // cos ky
-	ippsMulC_64f(kx, 3.74767 / 2, temp, length);
+	ippsMulC_64f(kx, 3.747665940 / 2, temp, length);
 	vdSin(length, temp, &temp[5 * length]); // sin kx/2
 	vdCos(length, temp, &temp[6 * length]); // cos kx/2
-	ippsMulC_64f(ky, 3.74767 / 2, temp, length);
+	ippsMulC_64f(ky, 3.747665940 / 2, temp, length);
 	vdSin(length, temp, &temp[7 * length]); // sin ky/2
 	vdCos(length, temp, &temp[8 * length]); // cos ky/2
 	ippsMulC_64f(kz, 6.6, temp, length);//kz*c/2(c=13.2)
@@ -667,33 +831,33 @@ int calculateAMRO::veloX(double *params, Ipp64f *kx, Ipp64f *ky, Ipp64f *kz, int
 
 
 int calculateAMRO::veloY(double *params, Ipp64f *kx, Ipp64f *ky, Ipp64f *kz, int length, Ipp64f *temp, Ipp64f *out) {
-	ippsMulC_64f(ky, 3.74767, temp, length); //term for sin(ky), param3
+	ippsMulC_64f(ky, 3.747665940, temp, length); //term for sin(ky), param3
 	vdSin(length, temp, &temp[1 * length]);
 	ippsMulC_64f(&temp[1 * length], params[3 - 1] * 11.4215, out, length);
 
-	ippsMulC_64f(kx, 3.74767, temp, length); //term for cos(kx)sin(ky), param4
+	ippsMulC_64f(kx, 3.747665940, temp, length); //term for cos(kx)sin(ky), param4
 	vdCos(length, temp, &temp[1 * length]);
-	ippsMulC_64f(ky, 3.74767, temp, length);
+	ippsMulC_64f(ky, 3.747665940, temp, length);
 	vdSin(length, temp, &temp[2 * length]);
 	ippsMul_64f_I(&temp[1 * length], &temp[2 * length], length);
 	ippsMulC_64f(&temp[2 * length], 22.8429*params[4 - 1], temp, length);
 	ippsAdd_64f_I(temp, out, length);
 
-	ippsMulC_64f(ky, 2 * 3.74767, temp, length); //term for sin(2 ky), param5
+	ippsMulC_64f(ky, 2 * 3.747665940, temp, length); //term for sin(2 ky), param5
 	vdSin(length, temp, &temp[1 * length]);
 	ippsMulC_64f(&temp[1 * length], params[5 - 1] * 11.4215 * 2, temp, length);
 	ippsAdd_64f_I(temp, out, length);
 
-	ippsMulC_64f(kx, 3.74767, temp, length); //term for long complicated kz term, param6
+	ippsMulC_64f(kx, 3.747665940, temp, length); //term for long complicated kz term, param6
 	vdSin(length, temp, &temp[1 * length]); // sin kx
 	vdCos(length, temp, &temp[2 * length]); // cos kx
-	ippsMulC_64f(ky, 3.74767, temp, length);
+	ippsMulC_64f(ky, 3.747665940, temp, length);
 	vdSin(length, temp, &temp[3 * length]); // sin ky
 	vdCos(length, temp, &temp[4 * length]); // cos ky
-	ippsMulC_64f(kx, 3.74767 / 2, temp, length);
+	ippsMulC_64f(kx, 3.747665940 / 2, temp, length);
 	vdSin(length, temp, &temp[5 * length]); // sin kx/2
 	vdCos(length, temp, &temp[6 * length]); // cos kx/2
-	ippsMulC_64f(ky, 3.74767 / 2, temp, length);
+	ippsMulC_64f(ky, 3.747665940 / 2, temp, length);
 	vdSin(length, temp, &temp[7 * length]); // sin ky/2
 	vdCos(length, temp, &temp[8 * length]); // cos ky/2
 	ippsMulC_64f(kz, 6.6, temp, length);//kz*c/2(c=13.2)
@@ -714,13 +878,13 @@ int calculateAMRO::veloY(double *params, Ipp64f *kx, Ipp64f *ky, Ipp64f *kz, int
 }
 
 int calculateAMRO::veloZ(double *params, Ipp64f *kx, Ipp64f *ky, Ipp64f *kz, int length, Ipp64f *temp, Ipp64f *out) {
-	ippsMulC_64f(kx, 3.74767, temp, length); //term for long complicated kz term, param6
+	ippsMulC_64f(kx, 3.747665940, temp, length); //term for long complicated kz term, param6
 	vdCos(length, temp, &temp[2 * length]); // cos kx
-	ippsMulC_64f(ky, 3.74767, temp, length);
+	ippsMulC_64f(ky, 3.747665940, temp, length);
 	vdCos(length, temp, &temp[4 * length]); // cos ky
-	ippsMulC_64f(kx, 3.74767 / 2, temp, length);
+	ippsMulC_64f(kx, 3.747665940 / 2, temp, length);
 	vdCos(length, temp, &temp[6 * length]); // cos kx/2
-	ippsMulC_64f(ky, 3.74767 / 2, temp, length);
+	ippsMulC_64f(ky, 3.747665940 / 2, temp, length);
 	vdCos(length, temp, &temp[8 * length]); // cos ky/2
 	ippsMulC_64f(kz, 6.6, temp, length);
 	vdSin(length, temp, &temp[9 * length]); // sin kzc/2
@@ -732,8 +896,8 @@ int calculateAMRO::veloZ(double *params, Ipp64f *kx, Ipp64f *ky, Ipp64f *kz, int
 	ippsMul_64f_I(&temp[9 * length], &temp[11 * length], length);// times sin kz/2
 	ippsMul_64f_I(&temp[8 * length], &temp[11 * length], length);// times cos ky/2
 	ippsMul_64f_I(&temp[6 * length], &temp[11 * length], length);// times cos ky/2
-	ippsMulC_64f(&temp[11 * length], params[6 - 1] * 10.0571, out, length);
-	ippsMulC_64f(&temp[13 * length], params[7 - 1] * 10.0571, &temp[12 * length], length);//h7 term ***removed factor of two when switching to cos kz from cos kz/2
+	ippsMulC_64f(&temp[11 * length], params[6 - 1] * 10.0571*2, out, length);
+	ippsMulC_64f(&temp[13 * length], params[7 - 1] * 10.0571*2, &temp[12 * length], length);//h7 term ***removed factor of two when switching to cos kz from cos kz/2
 	ippsAdd_64f_I(&temp[12 * length], out, length);
 
 
@@ -833,6 +997,50 @@ int  calculateAMRO::taufun(Ipp64f *params, Ipp64f *kx, Ipp64f *ky, int length, I
 	return 0;
 }
 */
+int calculateAMRO::taufundos(Ipp64f *params, Ipp64f minDos, Ipp64f maxDos, Ipp64f *kx, Ipp64f *ky, Ipp64f *kz, int length, Ipp64f *temp, Ipp64f *out, Ipp64f *ones) {
+	veloX(params, kx, ky, kz, length, &temp[3 * length], temp); //velocities for DOS are stored in vx, vy, and vz buffers.
+	veloY(params, kx, ky, kz, length, &temp[3 * length], &temp[length]);
+	veloZ(params, kx, ky, kz, length, &temp[3 * length], &temp[2 * length]);
+
+	ippsSqr_64f_I(temp, length);//in-place square of velocities
+	ippsSqr_64f_I(&temp[length], length);
+	ippsSqr_64f_I(&temp[2 * length], length);
+
+	ippsAdd_64f(temp, &temp[length], &temp[3 * length], length);//add all square velocities
+	ippsAdd_64f_I(&temp[2 * length], &temp[3 * length], length);
+	ippsSqrt_64f_I(&temp[3 * length], length);//square root
+	//ippsMulC_64f_I(1 / temp[3 * length], &temp[3 * length], length);//density of state
+	//ippsMulC_64f_I(params[8 - 1], &temp[3 * length], length);
+	//ippsAddC_64f(&temp[3 * length], params[1 - 1], out, length);
+	ippsDiv_64f(&temp[3 * length], ones, &temp[4 * length], length);//density of state
+	ippsAddC_64f_I(-maxDos, &temp[4 * length], length);
+
+	ippsMulC_64f_I((1 / params[8 - 1] - 1 / params[1 - 1]) / (maxDos - minDos), &temp[4 * length], length);
+	//	ippsMulC_64f_I(1 / params[1 - 1], &temp[4 * length], length);
+	ippsAddC_64f_I(1 / params[8 - 1], &temp[4 * length], length);
+	
+	ippsDiv_64f(kx, ky, temp, length);
+	ippsAtan_64f_A50(temp, &temp[length], length);
+	vdSin(length, &temp[length], &temp[2 * length]);//sin(arctan(ky/kx))
+	ippsSqr_64f_I(&temp[2 * length], length);
+	vdCos(length, &temp[length], &temp[3 * length]);//cos(arctan(ky/kx))
+	ippsSqr_64f_I(&temp[3 * length], length);
+	ippsSub_64f_I(&temp[2 * length], &temp[3 * length], length);//sin(arctan(ky/kx))^2-cos(arctan(ky/kx))^2
+	ippsMul_64f_I(&temp[3 * length], &temp[3 * length], length); //(sin(arctan(ky / kx)) ^ 2 - cos(arctan(ky / kx)) ^ 2)^2
+	ippsMulC_64f_I(params[9 - 1], &temp[3 * length], length);
+	ippsAdd_64f_I(&temp[3 * length], &temp[4 * length], length);
+
+	ippsDiv_64f(&temp[4 * length], ones, out, length);
+	//cout << *minDos << endl;
+	//delete minDos;
+
+
+
+
+
+
+	return 0;
+}
 int calculateAMRO::printPar()
 {
 	cout << "parameters:";

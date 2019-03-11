@@ -12,7 +12,7 @@ private:
 
 	//int taufun(Ipp64f *params, Ipp64f *kx, Ipp64f *ky, int length, Ipp64f *temp, Ipp64f *out);
 	int taufun(double *params, Ipp64f *kx, Ipp64f *ky, int length, Ipp64f *temp, Ipp64f *out, Ipp64f *one);
-	
+	int taufundos(Ipp64f *params, Ipp64f minDos, Ipp64f maxDos, Ipp64f *kx, Ipp64f *ky, Ipp64f *kz, int length, Ipp64f *temp, Ipp64f *out, Ipp64f *ones);
 	Ipp64f *thetas;
 	Ipp64f *phis;
 	double *params;
@@ -67,8 +67,22 @@ private:
 	Ipp64f *k4z;//what are these? why do we need k1-4?
 	Ipp64f *tempdif;
 	Ipp64f *exptau;
-
+	Ipp64f minDos;
+	Ipp64f maxDos;
 	Ipp64f total;
+
+	Ipp64f *temp ;
+	Ipp64f *upper_bound ;
+	
+	Ipp64f *lower_bound ;
+	
+	Ipp64f *over_shift;
+	
+	Ipp64f *less_shift;
+	
+	Ipp64f *zeros;//for inverting
+	
+
 	Ipp64f sum_resdual;
 	Ipp64f Resdual;
 	int updatetheta(Ipp64f *theta, int Length);

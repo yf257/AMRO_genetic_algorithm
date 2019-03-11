@@ -17,13 +17,16 @@ public:
 	void printMinimumParameters();
 	void exportChiSq();
 	void calculateNewGenerations(int nGenerations);
+	void residualCalculatingThread_old(Parameters::arrayBounds * arrayBounds);
+	static UINT startResidualThread_old(LPVOID param);
+
 	bool validparameterQ(double * parameters);
 	
 private:
 	int gridNum;
 	int cdevNum;
-	Ipp64f func(double *params, Ipp64f kx);
-	int func_cal(double *params, Ipp64f * argkz, Ipp64f * argCos, Ipp64f * argSin, Ipp64f *r, int length, Ipp64f *temp, Ipp64f *out);
+	Ipp64f func(double *params, Ipp64f kx,Ipp64f kz);
+	int func_cal(double *params, Ipp64f * argkz, Ipp64f * kx, Ipp64f * ky, int length, Ipp64f *temp, Ipp64f *out);
 	Ipp64f return_area(double *params,double kzval);
 	double totalTime;
 	_CrtMemState s1,s2,s3;
@@ -32,7 +35,7 @@ private:
 	static const int nVars = 9; // number of variables, F, dF, etc...
 	static const int nParams = 11;  //total parameters including chiSq
 
-	static const int nThreads = 8;
+	static const int nThreads =8;
 
     VSLStreamStatePtr stream;
 	int * ints1;

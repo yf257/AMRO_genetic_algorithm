@@ -60,14 +60,14 @@ double GeneticAlgorithm::calculateResidual(Parameters::fitParameters * parameter
 	
 		paramPointer++;
 	}
-	if (validparameterQ(_paramArray[threadID])) {
+	//if (validparameterQ(_paramArray[threadID])) {
 		
 		//residual = calculateAMRO1.returnvalue(_paramArray[threadID]);
 		//std::cout<< "valid P" << std::endl;
 		
 		
 		area = _paramArray[threadID][9];
-		if (area > 0.2 && area < 0.35) {
+		if (area > 0.15 && area < 0.28&&validparameterQ(_paramArray[threadID])) {
 			calculateAMRO calculateAMRO1(_dataSet, _paramArray[threadID], _thetas, cdevNum, gridNum, _dataSetLength, _phis);
 			residual = calculateAMRO1.returnvalue(_paramArray[threadID]);
 			//std::cout << std::left << std::setfill(' ') << std::setw(10) << _paramArray[threadID][0] << "," << _paramArray[threadID][1] << "," << _paramArray[threadID][2] << "," << _paramArray[threadID][3] << "," << _paramArray[threadID][4] << "," << _paramArray[threadID][5] << "," << _paramArray[threadID][6] << "," << _paramArray[threadID][7] << "," << _paramArray[threadID][8] << std::endl;
@@ -79,12 +79,12 @@ double GeneticAlgorithm::calculateResidual(Parameters::fitParameters * parameter
 		//	std::cout << "invalid dopping: " << area <<std::endl;
 		}
 		//std::cout << "dopping: " << area <<std::endl;
-	}
-	else {
-		residual = std::numeric_limits<double>::infinity();
+	//}
+	//else {
+	//	residual = std::numeric_limits<double>::infinity();
 	//	std::cout << "invalid P" << std::endl;
 		//std::cout << std::left << std::setfill(' ') << std::setw(10) << _paramArray[threadID][0] << "," << _paramArray[threadID][1] << "," << _paramArray[threadID][2] << "," << _paramArray[threadID][3] << "," << _paramArray[threadID][4] << "," << _paramArray[threadID][5] << "," << _paramArray[threadID][6] << "," << _paramArray[threadID][7] << "," << _paramArray[threadID][8] << std::endl;
-	}
+	//}
 	//double * frequencies = calculateFrequencies(_paramArray[threadID]);//<-directly change this one to conductivity 
 		//need to look at this part ****************************************************************
 
@@ -114,7 +114,7 @@ double GeneticAlgorithm::calculateArea(Parameters::fitParameters * parameters, i
 		//std::cout<< "valid P" << std::endl;
 
 
-		area = 0.5*(return_area(_paramArray[threadID],0)+ return_area(_paramArray[threadID], 0.237999));
+		area = 0.5*(return_area(_paramArray[threadID],0)+ return_area(_paramArray[threadID], 0.476));
 		//if (area > 0.2 && area < 0.5) {
 
 			//calculateAMRO calculateAMRO1(_dataSet, _paramArray[threadID], _thetas, cdevNum, gridNum, _dataSetLength, _phis);
@@ -338,27 +338,30 @@ void GeneticAlgorithm::printMinimumParameters(){
 	
 
 }
-Ipp64f GeneticAlgorithm::func(double *params, Ipp64f kx) {
+Ipp64f GeneticAlgorithm::func(double *params, Ipp64f kx,Ipp64f kz) {
 	Ipp64f energy;
 	Ipp64f t = 17582.4;
-	Ipp64f a = 3.74767;
-	energy = params[1]* t -2 *t *params[2]*(cos(kx *a) + 1) -4 *t *params[ 3]*cos(kx *a) -2 *t* params[ 4] * (cos(2 *(kx *a)) + 1) -2 *t *params[ 5] * (cos(kx *a) -1)*(cos(kx *a) - 1) * cos((kx *a) / 2)  - 2 * t*params[6] ;
+	Ipp64f a = 3.747665940;
+	Ipp64f c = 13.2;
+	energy = params[1]* t -2 *t *params[2]*(cos(kx *a) + 1) -4 *t *params[ 3]*cos(kx *a) -2 *t* params[ 4] * (cos(2 *(kx *a)) + 1) -2 *t *params[ 5] * (cos(kx *a) -1)*(cos(kx *a) - 1) * cos((kx *a) / 2)*cos(kz*c/2)  - 2 * t*params[6] * cos(kz*c / 2);
 	
 
 	return energy;
 }
 bool GeneticAlgorithm::validparameterQ(double * parameters) {
 	Ipp64f productenergy;
-	Ipp64f a = 3.74767;
-	productenergy = func(parameters, 0)* func(parameters, 3.1415926 / a);
+	Ipp64f a = 3.747665940;
+	Ipp64f c = 13.2;
+	productenergy = func(parameters, 0, 2* 3.1415926 / c)* func(parameters, 3.1415926 / a, 2 * 3.1415926 / c);
 	
-	if (productenergy >= 0 || parameters[0]<=0) { 
+	if (productenergy <= 0) { 
 		return false; 
 	}
 	else { 
 		return true;
 	}
 }
+/*
 int  GeneticAlgorithm::func_cal(double *params, Ipp64f * argkz, Ipp64f * argCos, Ipp64f * argSin, Ipp64f *r, int length, Ipp64f *temp, Ipp64f *out) {
 	ippsMulC_64f(argCos, 3.747665940, temp, length);
 	ippsMul_64f_I(r, temp, length);
@@ -404,6 +407,55 @@ int  GeneticAlgorithm::func_cal(double *params, Ipp64f * argkz, Ipp64f * argCos,
 	ippsAdd_64f_I(&temp[9 * length], out, length);
 
 }
+*/
+int GeneticAlgorithm::func_cal(double *params, Ipp64f * argkz, Ipp64f * kx, Ipp64f * ky, int length, Ipp64f *temp, Ipp64f *out) {
+
+	ippsMulC_64f(kx, 3.747665940, temp, length);
+	//ippsMul_64f_I(r, temp, length);
+	vdCos(length, temp, &temp[1 * length]); // cos cos
+	ippsMulC_64f(ky, 3.747665940, temp, length);
+	//ippsMul_64f_I(r, temp, length);
+	vdCos(length, temp, &temp[2 * length]); // cos sin
+	ippsMulC_64f(kx, 3.747665940 / 2, temp, length);
+	//ippsMul_64f_I(r, temp, length);
+	vdCos(length, temp, &temp[3 * length]); // cos cos/2
+	ippsMulC_64f(ky, 3.747665940 / 2, temp, length);
+	//ippsMul_64f_I(r, temp, length);
+	vdCos(length, temp, &temp[4 * length]); // cos sin/2
+	ippsMulC_64f(kx, 3.747665940 * 2, temp, length);
+	//ippsMul_64f_I(r, temp, length);
+	vdCos(length, temp, &temp[5 * length]); // cos 2 cos
+	ippsMulC_64f(ky, 3.747665940 * 2, temp, length);
+	//ippsMul_64f_I(r, temp, length);
+	vdCos(length, temp, &temp[6 * length]); // cos 2 sin
+	ippsMulC_64f(argkz, 0.5, &temp[8 * length], length); //kzc / 2
+	vdCos(length, &temp[8 * length], &temp[7 * length]); // cos kzc/2
+	vdCos(length, &temp[8 * length], &temp[9 * length]); // cos kzc ***made same as above, cos kzc/2
+
+	ippsAdd_64f(&temp[5 * length], &temp[6 * length], temp, length);// param 5
+	ippsMulC_64f(temp, -35164.83516*params[5 - 1], out, length);
+
+	ippsMul_64f(&temp[1 * length], &temp[2 * length], temp, length);// param 4
+	ippsMulC_64f_I(-35164.83516 * 2 * params[4 - 1], temp, length);
+	ippsAdd_64f_I(temp, out, length);
+
+	ippsAdd_64f(&temp[1 * length], &temp[2 * length], temp, length);// param 3
+	ippsMulC_64f_I(-35164.83516 * params[3 - 1], temp, length);
+	ippsAdd_64f_I(temp, out, length);
+	ippsAddC_64f_I(35164.83516 / 2 * params[2 - 1], out, length);// param 2
+	ippsSub_64f(&temp[2 * length], &temp[1 * length], temp, length);// param 6
+	ippsSqr_64f_I(temp, length); //square
+	ippsMul_64f_I(&temp[3 * length], temp, length); // mult by cos cos/2
+	ippsMul_64f_I(&temp[4 * length], temp, length); // mult by cos sin/2
+	ippsMul_64f_I(&temp[7 * length], temp, length); // mult by cos  kz/2
+	ippsMulC_64f_I(-35164.83516 * params[6 - 1], temp, length);
+	ippsMulC_64f_I(-35164.83516 *params[7 - 1], &temp[9 * length], length);
+	ippsAdd_64f_I(temp, out, length);
+	ippsAdd_64f_I(&temp[9 * length], out, length);
+
+	return 0;
+}
+/*
 Ipp64f  GeneticAlgorithm::return_area(double *params,double kzval) {
 	int fineN = 1000;
 	Ipp64f *kz = new Ipp64f[fineN];//for inverting
@@ -427,7 +479,7 @@ Ipp64f  GeneticAlgorithm::return_area(double *params,double kzval) {
 	Ipp64f *ky = new Ipp64f[fineN];
 	for (int j = 0; j < fineN; j++)
 	{
-		/*cout << starts[2 * i] << " " << starts[2 * i + 1] << endl;*/
+		cout << starts[2 * i] << " " << starts[2 * i + 1] << endl;
 		gtheta[ j] = 2 * 3.1415926 / (fineN - 1) * j;
 		r[j] = 0.3;
 	}
@@ -436,8 +488,8 @@ Ipp64f  GeneticAlgorithm::return_area(double *params,double kzval) {
 	for (int i = 0; i < 50; i++)
 	{  /*vdSin(nPoints, theta, argSin);
 		vdCos(nPoints, theta, argCos);
-		ippsMulC_64f_I(3.74767, argSin, nPoints);
-		ippsMulC_64f_I(3.74767, argCos, nPoints);
+		ippsMulC_64f_I(3.747665940, argSin, nPoints);
+		ippsMulC_64f_I(3.747665940, argCos, nPoints);
 		ippsMulC_64f(kz, 3.3, argkz, nPoints);
 		func(argkz, argCos, argSin, r, nPoints, temp1, temp2, temp3, funcval);
 
@@ -450,7 +502,7 @@ Ipp64f  GeneticAlgorithm::return_area(double *params,double kzval) {
 		ippsDivC_64f_I(2E-5, dfunc, nPoints);
 
 		ippsDiv_64f_I(dfunc, funcval, nPoints);
-		ippsSub_64f_I(funcval, r, nPoints);*/
+		ippsSub_64f_I(funcval, r, nPoints);
 
 		//caxis lattice parameter =3.3  k_z * c
 		func_cal(params, kz, argCos, argSin, r, fineN, temp1, funcval);
@@ -506,4 +558,72 @@ Ipp64f  GeneticAlgorithm::return_area(double *params,double kzval) {
 	delete ky;
 
 	return -1 + 2 *(1 - 0.177882 *area);
+}
+*/
+Ipp64f  GeneticAlgorithm::return_area(double *params, double kzval) {
+	int fineN = 100;
+	int nfinepoint = (fineN*fineN);
+	Ipp64f *argkz = new Ipp64f[nfinepoint];
+	ippsSet_64f(kzval, argkz, nfinepoint);
+	Ipp64f *tempx1 = new Ipp64f[nfinepoint];
+	Ipp64f *tempy1 = new Ipp64f[nfinepoint];
+	Ipp64f *temp1 = new Ipp64f[20 * nfinepoint];
+	Ipp64f *tfunc = new Ipp64f[nfinepoint];
+	Ipp64f *zeros = new Ipp64f[nfinepoint];
+	ippsSet_64f(0, zeros, nfinepoint);
+	Ipp64f *funcval = new Ipp64f[ nfinepoint];
+	Ipp64f area = 0;
+	for (int j = 0; j < fineN; j++)
+	{
+		for (int k = 0; k < fineN; k++)
+		{
+			tempx1[k * fineN + j] = -3.1415926 / 3.747665940 + 2 * 3.1415926 / 3.747665940 / fineN * j;
+			tempy1[k * fineN + j] = -3.1415926 / 3.747665940 + 2 * 3.1415926 / 3.747665940 / fineN * k;
+		}
+	}
+	ippsMulC_64f_I( 13.2, argkz, nfinepoint);
+	func_cal(params, argkz, tempx1, tempy1, nfinepoint, temp1, tfunc);
+	ippsMaxEvery_64f(zeros, tfunc, funcval, nfinepoint);
+	ippsDiv_64f_I(tfunc, funcval, nfinepoint);
+	ippsSum_64f(funcval, nfinepoint, &area);
+	delete argkz;
+	
+	delete tempx1 ;
+	delete tempy1 ;
+	delete temp1;
+	delete tfunc;
+	delete zeros;
+	
+	delete funcval;
+	return  -1 + 2 * ( area/ nfinepoint);
+}
+UINT GeneticAlgorithm::startResidualThread_old(LPVOID param) {
+	threadContents * contents = (threadContents*)param;
+	contents->pThis->residualCalculatingThread_old(&(contents->arrayBounds));
+	return 0;
+}
+
+void GeneticAlgorithm::residualCalculatingThread_old(Parameters::arrayBounds * arrayBounds) {
+
+
+
+	LARGE_INTEGER time1, time2;
+
+
+
+	for (int i = arrayBounds->start; i <= arrayBounds->end; i++) {
+
+		QueryPerformanceCounter(&time1);
+
+		//_populationParametersOld[i].area = calculateArea(&_populationParametersOld[i], arrayBounds->threadID);
+		_populationParametersOld[i].chiSq = calculateResidual(&_populationParametersOld[i], arrayBounds->threadID);
+	//	std::cout << std::left << std::setfill(' ') << std::setw(10) << _populationParametersOld[i].h1 << std::setw(10) << _populationParametersOld[i].h2 << std::setw(10) << _populationParametersOld[i].h3 << std::setw(10) << _populationParametersOld[i].h4 << std::setw(10) << _populationParametersOld[i].h5 << std::setw(10) << _populationParametersOld[i].h6 << std::setw(10) << _populationParametersOld[i].h7 << std::setw(10) << _populationParametersOld[i].h8 << std::setw(10) << _populationParametersOld[i].h9 << std::setw(10) << "Residual: " << _populationParametersOld[i].chiSq << std::endl;
+
+		QueryPerformanceCounter(&time2);
+		arrayBounds->time += 1000 * (double)(time2.QuadPart - time1.QuadPart) / (freq.QuadPart);
+
+	}
+	SetEvent(arrayBounds->handle);
+
+	return;
 }
