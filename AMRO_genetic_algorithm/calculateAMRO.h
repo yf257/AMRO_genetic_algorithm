@@ -12,7 +12,7 @@ private:
 
 	//int taufun(Ipp64f *params, Ipp64f *kx, Ipp64f *ky, int length, Ipp64f *temp, Ipp64f *out);
 	int taufun(double *params, Ipp64f *kx, Ipp64f *ky, int length, Ipp64f *temp, Ipp64f *out, Ipp64f *one);
-	int taufundos(Ipp64f *params, Ipp64f minDos, Ipp64f maxDos, Ipp64f *kx, Ipp64f *ky, Ipp64f *kz, int length, Ipp64f *temp, Ipp64f *out, Ipp64f *ones);
+	int taufundos(Ipp64f *params, Ipp64f minDos, Ipp64f maxDos, Ipp64f *kx, Ipp64f *ky, Ipp64f *kz, int length, Ipp64f *temp, Ipp64f *out, Ipp64f *ones, Ipp64f *zeros, Ipp64f *over_shift, Ipp64f *less_shift);
 	Ipp64f *thetas;
 	Ipp64f *phis;
 	double *params;

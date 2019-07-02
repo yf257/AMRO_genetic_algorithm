@@ -67,7 +67,7 @@ double GeneticAlgorithm::calculateResidual(Parameters::fitParameters * parameter
 		
 		
 		area = _paramArray[threadID][9];
-		if (area > 0.15 && area < 0.28&&validparameterQ(_paramArray[threadID])) {
+		if (area > 0.22 && area < 0.35&&(validparameterQ(_paramArray[threadID]))) {
 			calculateAMRO calculateAMRO1(_dataSet, _paramArray[threadID], _thetas, cdevNum, gridNum, _dataSetLength, _phis);
 			residual = calculateAMRO1.returnvalue(_paramArray[threadID]);
 			//std::cout << std::left << std::setfill(' ') << std::setw(10) << _paramArray[threadID][0] << "," << _paramArray[threadID][1] << "," << _paramArray[threadID][2] << "," << _paramArray[threadID][3] << "," << _paramArray[threadID][4] << "," << _paramArray[threadID][5] << "," << _paramArray[threadID][6] << "," << _paramArray[threadID][7] << "," << _paramArray[threadID][8] << std::endl;
@@ -232,17 +232,29 @@ void GeneticAlgorithm::calculateNewGenerations(int nGenerations){
 		WaitForMultipleObjects(nThreads,threadEvents,TRUE,INFINITE);	
 		std::string filename = "";
 		filename = "";
-		filename.append("generation");
+		filename.append("generation_new");
 	    filename.append(std::to_string(i+10));
 		filename.append(".dat");
-		std::ofstream out;
-	    out.open(filename);
-		out.precision(15);
+		std::ofstream out1;
+	    out1.open(filename);
+		out1.precision(15);
 		for (int genera = 0; genera < _nPopulation; ++genera) {
 		
-			out << _populationParametersNew[genera].h1 << '\t' << _populationParametersNew[genera].h2 << '\t' << _populationParametersNew[genera].h3 << '\t' << _populationParametersNew[genera].h4 << '\t' << _populationParametersNew[genera].h5 << '\t' << _populationParametersNew[genera].h6 << '\t' << _populationParametersNew[genera].h7 << '\t' << _populationParametersNew[genera].h8 << '\t' << _populationParametersNew[genera].h9 << '\t' << _populationParametersNew[genera].area <<'\t' <<_populationParametersNew[genera].chiSq << std::endl;
+			out1 << _populationParametersNew[genera].h1 << '\t' << _populationParametersNew[genera].h2 << '\t' << _populationParametersNew[genera].h3 << '\t' << _populationParametersNew[genera].h4 << '\t' << _populationParametersNew[genera].h5 << '\t' << _populationParametersNew[genera].h6 << '\t' << _populationParametersNew[genera].h7 << '\t' << _populationParametersNew[genera].h8 << '\t' << _populationParametersNew[genera].h9 << '\t' << _populationParametersNew[genera].area <<'\t' <<_populationParametersNew[genera].chiSq << std::endl;
 		}
-		out.close();
+		out1.close();
+		filename = "";
+		filename.append("generation_old");
+		filename.append(std::to_string(i + 10));
+		filename.append(".dat");
+		std::ofstream out2;
+		out2.open(filename);
+		out2.precision(15);
+		for (int genera = 0; genera < _nPopulation; ++genera) {
+
+			out2 << _populationParametersOld[genera].h1 << '\t' << _populationParametersOld[genera].h2 << '\t' << _populationParametersOld[genera].h3 << '\t' << _populationParametersOld[genera].h4 << '\t' << _populationParametersOld[genera].h5 << '\t' << _populationParametersOld[genera].h6 << '\t' << _populationParametersOld[genera].h7 << '\t' << _populationParametersOld[genera].h8 << '\t' << _populationParametersOld[genera].h9 << '\t' << _populationParametersOld[genera].area << '\t' << _populationParametersOld[genera].chiSq << std::endl;
+		}
+		out2.close();
 		
 		for(int timerIndex = 0; timerIndex < nThreads; timerIndex++){
 		totalTime += threadContents[timerIndex].arrayBounds.time;
@@ -343,23 +355,35 @@ Ipp64f GeneticAlgorithm::func(double *params, Ipp64f kx,Ipp64f kz) {
 	Ipp64f t = 17582.4;
 	Ipp64f a = 3.747665940;
 	Ipp64f c = 13.2;
-	energy = params[1]* t -2 *t *params[2]*(cos(kx *a) + 1) -4 *t *params[ 3]*cos(kx *a) -2 *t* params[ 4] * (cos(2 *(kx *a)) + 1) -2 *t *params[ 5] * (cos(kx *a) -1)*(cos(kx *a) - 1) * cos((kx *a) / 2)*cos(kz*c/2)  - 2 * t*params[6] * cos(kz*c / 2);
+	energy = params[1]* t -2 *t *params[2]*(cos(kx *a) + 1) -4 *t *params[ 3]*cos(kx *a) -2 *t* params[ 4] * (cos(2 *(kx *a)) + 1) -2 *t *params[ 5] * (cos(kx *a) -1)*(cos(kx *a) - 1) * cos((kx *a) / 2)*cos(kz*c/2);
 	
 
 	return energy;
 }
 bool GeneticAlgorithm::validparameterQ(double * parameters) {
-	Ipp64f productenergy;
+	Ipp64f productenergy1;
+	Ipp64f productenergy2;
 	Ipp64f a = 3.747665940;
 	Ipp64f c = 13.2;
-	productenergy = func(parameters, 0, 2* 3.1415926 / c)* func(parameters, 3.1415926 / a, 2 * 3.1415926 / c);
-	
-	if (productenergy <= 0) { 
-		return false; 
+	productenergy1 = func(parameters, 0, 2* 3.1415926 / c)* func(parameters, 3.1415926 / a, 2 * 3.1415926 / c);
+	productenergy2 = func(parameters, 0, 0)* func(parameters, 3.1415926 / a,0);
+	////p = 0p24
+	if (productenergy1 <= 0 && productenergy1 <= 0) {
+		return true; 
 	}
 	else { 
+		return false;
+	}
+	///p = 0p21
+	/*
+	if (productenergy1 > 0 && productenergy1 > 0) {
 		return true;
 	}
+	else {
+		return false;
+
+	}*/
+
 }
 /*
 int  GeneticAlgorithm::func_cal(double *params, Ipp64f * argkz, Ipp64f * argCos, Ipp64f * argSin, Ipp64f *r, int length, Ipp64f *temp, Ipp64f *out) {
@@ -449,7 +473,8 @@ int GeneticAlgorithm::func_cal(double *params, Ipp64f * argkz, Ipp64f * kx, Ipp6
 	ippsMul_64f_I(&temp[4 * length], temp, length); // mult by cos sin/2
 	ippsMul_64f_I(&temp[7 * length], temp, length); // mult by cos  kz/2
 	ippsMulC_64f_I(-35164.83516 * params[6 - 1], temp, length);
-	ippsMulC_64f_I(-35164.83516 *params[7 - 1], &temp[9 * length], length);
+	//ippsMulC_64f_I(-35164.83516 *params[7 - 1], &temp[9 * length], length);
+	ippsMulC_64f_I(-35164.83516 *0, &temp[9 * length], length);
 	ippsAdd_64f_I(temp, out, length);
 	ippsAdd_64f_I(&temp[9 * length], out, length);
 

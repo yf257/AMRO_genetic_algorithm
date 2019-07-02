@@ -40,33 +40,33 @@ void GeneticAlgorithm::initializeParameters(double* dataSet, int dataSetLength, 
 	
 	for (int i = 0; i < _nPopulation; i++) {
 
-		_populationParametersOld[i].h1 = (randomDouble(0.04, 0.15));
+		_populationParametersOld[i].h1 = (randomDouble(0.06, 0.07));
 
 		//_populationParametersOld[i].h2 = (randomDouble(350, 750));
-		_populationParametersOld[i].h2 = (randomDouble(140, 190));
+		_populationParametersOld[i].h2 = (randomDouble(190*0.95*0.9, 190* 0.95*1.1));
 		//_populationParametersOld[i].h2 = 181.98;
 		//_populationParametersOld[i].h2 = 557.568650327878;
 
 		//_populationParametersOld[i].h3 = (randomDouble(500, 550));
 		_populationParametersOld[i].h3 = 190;
 
-		_populationParametersOld[i].h4 = -1 * (randomDouble(30.4*0.8, 30.4*1.2));//(30,100)
+		_populationParametersOld[i].h4 = -1 * (randomDouble(190*0.14*0.9, 190 * 0.14*1.1));//(30,100)
 		//_populationParametersOld[i].h4 = -30.4;
-		_populationParametersOld[i].h5 = (randomDouble(13*0.8, 13*1.2));
+		_populationParametersOld[i].h5 = (randomDouble(190*0.07*0.9, 190 * 0.07*1.1));
 		//_populationParametersOld[i].h5 = 13.397;
 
-		_populationParametersOld[i].h6 = (randomDouble(13*0.8, 13*1.2));
+		_populationParametersOld[i].h6 = (randomDouble(190 * 0.07*0.9, 190 * 0.07*1.1));
 		//_populationParametersOld[i].h6 = 13.397;
-		_populationParametersOld[i].h7 = (randomDouble(0, 3)) - 1.5;
+		_populationParametersOld[i].h7 = 2 * (ceil(randomDouble(0, 10)));
 		//_populationParametersOld[i].h7 = -1.2;
 		//_populationParametersOld[i].h5 = 16.1129375749168;
 		//_populationParametersOld[i].h6 = 2.57290092103488;
 		//_populationParametersOld[i].h7 = -1.28989597536799;
 
-		_populationParametersOld[i].h8 = randomDouble(0.001, 0.03);
-		//_populationParametersOld[i].h8 = 0;
+		//_populationParametersOld[i].h8 = randomDouble(0.001, 0.03);
+		_populationParametersOld[i].h8 = _populationParametersOld[i].h1;
 		//_populationParametersOld[i].h9 = 2 * (ceil(randomDouble(0, 15)));
-		_populationParametersOld[i].h9 = randomDouble(0, 20);
+		_populationParametersOld[i].h9 = randomDouble(50, 150);
 		paramPointer[0] = _populationParametersOld[i].h1;
 		paramPointer[1] = _populationParametersOld[i].h2;
 		paramPointer[2] = _populationParametersOld[i].h3;
@@ -81,7 +81,7 @@ void GeneticAlgorithm::initializeParameters(double* dataSet, int dataSetLength, 
 	    area_half = return_area(paramPointer, 0.237999*2);//kz=Pi/c
 		
 		//if (area_0 > 0.18 && area_0 < 0.23 && validparameterQ(paramPointer)&& area_half >  0.18 && area_half < 0.23) {
-		if ((area_0 + area_half) / 2 > 0.15 && (area_0 + area_half) / 2 < 0.28 && validparameterQ(paramPointer)){ //< 0.25 && area_half >  0.15 && area_half < 0.25) {
+		if ((area_0 + area_half) / 2 > 0.22 && (area_0 + area_half) / 2 < 0.35 && (validparameterQ(paramPointer))){ //< 0.25 && area_half >  0.15 && area_half < 0.25) {
 			//std::cout << i << "       " << area << std::endl;
 			_populationParametersOld[i].area = (area_0+ area_half)/2;
 			//_populationParametersOld[i].chiSq = calculateResidual(&_populationParametersOld[i], 0);
@@ -299,16 +299,21 @@ void GeneticAlgorithm::EvolveParameter(double * pOld, double * pNew, double * ra
 		pNew[6] = pOld[6];
 	}
 	else {
-		pNew[6] = rand1[6] + _scaleFactor * (rand2[6] - rand3[6]);
+		//pNew[6] = rand1[6] + _scaleFactor * (rand2[6] - rand3[6]);
+		pNew[6] = 2 * (ceil(randomDouble(0, 10)));
 	}
 	
 	//pNew[7] = pOld[7];
 	p = randomDouble(0, 1);
 	if (p > _crossingProbability) {
-		pNew[7] = pOld[7];
+	//	pNew[7] = pOld[7];
+		pNew[7] = pNew[0];
 	}
 	else {
-		pNew[7] = rand1[7] + _scaleFactor * (rand2[7] - rand3[7]);
+		//pNew[7] = rand1[7] + _scaleFactor * (rand2[7] - rand3[7]);
+		//pNew[7] = min(rand1[7] + _scaleFactor * (rand2[7] - rand3[7]), pNew[1]);
+		pNew[7] = pNew[0];
+
 	}
 	//pNew[8] = pOld[8];
 	p = randomDouble(0, 1);
