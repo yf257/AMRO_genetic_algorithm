@@ -57,7 +57,7 @@ void GeneticAlgorithm::initializeParameters(double* dataSet, int dataSetLength, 
 
 		_populationParametersOld[i].h6 = (randomDouble(190 * 0.07*0.9, 190 * 0.07*1.1));
 		//_populationParametersOld[i].h6 = 13.397;
-		_populationParametersOld[i].h7 = 2 * (ceil(randomDouble(0, 10)));
+		_populationParametersOld[i].h7 = 12;//2 * (ceil(randomDouble(0, 10)));
 		//_populationParametersOld[i].h7 = -1.2;
 		//_populationParametersOld[i].h5 = 16.1129375749168;
 		//_populationParametersOld[i].h6 = 2.57290092103488;
@@ -294,27 +294,27 @@ void GeneticAlgorithm::EvolveParameter(double * pOld, double * pNew, double * ra
 		pNew[5] = rand1[5] + _scaleFactor * (rand2[5] - rand3[5]);
 	}
 
-	p = randomDouble(0, 1);
-	if (p > _crossingProbability) {
+//	p = randomDouble(0, 1);
+	//if (p > _crossingProbability) {
 		pNew[6] = pOld[6];
-	}
+	/*}
 	else {
 		//pNew[6] = rand1[6] + _scaleFactor * (rand2[6] - rand3[6]);
 		pNew[6] = 2 * (ceil(randomDouble(0, 10)));
-	}
+	}*/
 	
 	//pNew[7] = pOld[7];
-	p = randomDouble(0, 1);
-	if (p > _crossingProbability) {
+	//p = randomDouble(0, 1);
+	//if (p > _crossingProbability) {
 	//	pNew[7] = pOld[7];
 		pNew[7] = pNew[0];
-	}
-	else {
+	//}
+	//else {
 		//pNew[7] = rand1[7] + _scaleFactor * (rand2[7] - rand3[7]);
 		//pNew[7] = min(rand1[7] + _scaleFactor * (rand2[7] - rand3[7]), pNew[1]);
-		pNew[7] = pNew[0];
+	//	pNew[7] = pNew[0];
 
-	}
+	//}
 	//pNew[8] = pOld[8];
 	p = randomDouble(0, 1);
 	if (p > _crossingProbability) {

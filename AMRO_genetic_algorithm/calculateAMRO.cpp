@@ -469,7 +469,7 @@ Ipp64f calculateAMRO::returnvalue(double * param)
 		}
 		ippsDivC_64f(condout, condout[0], &tempx[2 * _dataLeng], _dataLeng);//normalize conductivity
 		ippsDiv_64f(&tempx[2 * _dataLeng], ones, tempx, _dataLeng);// 1/conductivity to get resistivity 
-		ippsSub_64f(tempx, _data, &tempx[_dataLeng], _dataLeng);// (cal[theta]-dat[theta])
+		ippsSub_64f(tempx, &_data[phi_i*_dataLeng], &tempx[_dataLeng], _dataLeng);// (cal[theta]-dat[theta])
 		ippsMul_64f_I(&tempx[_dataLeng], &tempx[_dataLeng], _dataLeng);// (cal[theta]-dat[theta])^2
 		ippsSum_64f(&tempx[_dataLeng], _dataLeng, &Resdual);//sum( (cal[theta]-dat[theta])^2)
 		sum_resdual = sum_resdual + Resdual;
